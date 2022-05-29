@@ -1,14 +1,12 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-#[allow(dead_code)]
 #[derive(Clone, PartialEq)]
 enum Color {
     Red,
     Black,
 }
 
-#[allow(dead_code)]
 #[derive(Clone)]
 struct Node<T> {
     parent: Option<Rc<RefCell<Node<T>>>>,
@@ -18,7 +16,6 @@ struct Node<T> {
     color: Option<Color>,
 }
 
-#[allow(dead_code)]
 impl<T> Node<T> {
     fn new(key: T, color: Color) -> Self {
         Node {
@@ -48,14 +45,12 @@ impl<T> Node<T> {
     }
 }
 
-#[allow(dead_code)]
-struct RBtree<T> {
+pub struct RBtree<T> {
     root: Option<Rc<RefCell<Node<T>>>>,
     sentinel: Rc<RefCell<Node<T>>>,
     size: i64,
 }
 
-#[allow(dead_code)]
 impl<T> RBtree<T>
 where
     T: PartialOrd + PartialEq + Clone,
