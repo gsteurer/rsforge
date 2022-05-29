@@ -214,12 +214,26 @@ where
         self.rb_insert_fixup(z_ref);
     }
 
-    pub fn rb_search(&self, item: T) -> Option<T> {
+    pub fn search(&self, item: T) -> Option<T> {
         let mut node = Rc::clone(self.root.as_ref().unwrap());
         while Rc::as_ptr(&node) != Rc::as_ptr(&self.sentinel) {
             let key: T = (*node.borrow().key.as_ref().unwrap()).clone();
             if key == item {
-                return Some(key);
+                let left_key = node.borrow().left.as_ref().unwrap().borrow().key.clone();
+                let right_key = node.borrow().right.as_ref().unwrap().borrow().key.clone();
+                if Rc::as_ptr(node.borrow().left.as_ref().unwrap()) != Rc::as_ptr(&self.sentinel) && left_key == Some(item.clone()) {
+                    node = {
+                        let borrowed_node = node.borrow();
+                        Rc::clone(borrowed_node.left.as_ref().unwrap())
+                    }
+                } else if Rc::as_ptr(node.borrow().right.as_ref().unwrap()) != Rc::as_ptr(&self.sentinel) && right_key == Some(item.clone()) {
+                    node = {
+                        let borrowed_node = node.borrow();
+                        Rc::clone(borrowed_node.right.as_ref().unwrap())
+                    }
+                } else {
+                    return Some(key);
+                }
             } else if key < item {
                 node = {
                     let borrowed_node = node.borrow();
@@ -273,16 +287,17 @@ mod test {
     #[test]
     fn insert_works_int() {
         let mut t: RBtree<i32> = RBtree::new();
+        let size = 10000;
 
-        for i in 0..100 {
+        for i in 0..size {
             let n = i;
             t.insert(n);
         }
 
-        for i in (0..100).rev() {
-            assert_eq!(t.rb_search(i), Some(i));
+        for i in (0..size).rev() {
+            assert_eq!(t.search(i), Some(i));
         }
 
-        assert_eq!(t.size(), 100);
+        assert_eq!(t.size(), size as i64);
     }
 }
