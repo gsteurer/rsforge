@@ -46,12 +46,9 @@ impl Edge {
             weight: 1,
         }
     }
-    fn with_weight(&self, weight: Weight) -> Self {
-        Edge {
-            src: self.src.clone(),
-            dst: self.dst.clone(),
-            weight: weight,
-        }
+    fn with_weight(mut self, weight: Weight) -> Self {
+        self.weight = weight;
+        self
     }
     fn contains(&self, vert_id: &String) -> bool {
         self.src.eq(vert_id) || self.dst.eq(vert_id)

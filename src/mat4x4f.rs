@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 pub struct Mat4x4f {
     data: [f32; 16],
 }
