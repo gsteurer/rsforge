@@ -264,6 +264,7 @@ where
 mod test {
 
     use super::RBtree;
+    use crate::rand::Rand;
 
     #[test]
     fn insert_works_str() {
@@ -291,6 +292,28 @@ mod test {
 
         for i in (0..size).rev() {
             assert_eq!(t.search(i), Some(i));
+        }
+
+        assert_eq!(t.size(), size as i64);
+    }
+
+    #[test]
+    fn insert_works_randint() {
+        let mut t: RBtree<i32> = RBtree::new();
+        let size = 10000;
+
+        let mut r = Rand::srand(69);
+
+        let mut values = Vec::new();
+        for _ in 0..size {
+            let n = (r.rand() % size) as i32;
+            values.push(n);
+            t.insert(n);
+        }
+
+        for i in 0..size {
+            let n = values[i as usize];
+            assert_eq!(t.search(n), Some(n));
         }
 
         assert_eq!(t.size(), size as i64);
