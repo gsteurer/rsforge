@@ -209,7 +209,7 @@ where
         self.rb_insert_fixup(z_ref);
     }
 
-    pub fn search(&self, item: T) -> Option<T> {
+    fn rb_search(&self, item: T) -> Option<Rc<RefCell<Node<T>>>> {
         let mut node = Rc::clone(self.root.as_ref().unwrap());
         while Rc::as_ptr(&node) != Rc::as_ptr(&self.sentinel) {
             let key: T = (*node.borrow().key.as_ref().unwrap()).clone();
@@ -227,7 +227,7 @@ where
                         Rc::clone(borrowed_node.right.as_ref().unwrap())
                     }
                 } else {
-                    return Some(key);
+                    return Some(Rc::clone(&node));
                 }
             } else if key < item {
                 node = {
@@ -245,6 +245,174 @@ where
         None
     }
 
+    fn rb_tree_minimum(&self, mut node: Rc<RefCell<Node<T>>>) -> Rc<RefCell<Node<T>>> {
+        let mut last_node = Rc::clone(&node);
+        while Rc::as_ptr(&node) != Rc::as_ptr(&self.sentinel) {
+            last_node = Rc::clone(&node);
+            let next = Rc::clone(node.borrow().left.as_ref().unwrap());
+            node = next;
+        }
+        last_node
+    }
+
+    fn rb_tree_maximum(&self, mut node: Rc<RefCell<Node<T>>>) -> Rc<RefCell<Node<T>>> {
+        let mut last_node = Rc::clone(&node);
+        while Rc::as_ptr(&node) != Rc::as_ptr(&self.sentinel) {
+            last_node = Rc::clone(&node);
+            let next = Rc::clone(node.borrow().right.as_ref().unwrap());
+            node = next;
+        }
+        last_node
+    }
+
+    fn rb_transplant(&mut self, u: Rc<RefCell<Node<T>>>, v: Rc<RefCell<Node<T>>>) {
+        if Rc::as_ptr(u.borrow().parent.as_ref().unwrap()) == Rc::as_ptr(&self.sentinel) {
+            self.root = Some(Rc::clone(&v));
+        } else if Rc::as_ptr(&u) == Rc::as_ptr(u.borrow().parent.as_ref().unwrap().borrow().left.as_ref().unwrap()) {
+            u.borrow().parent.as_ref().unwrap().borrow_mut().left = Some(Rc::clone(&v));
+        } else {
+            u.borrow().parent.as_ref().unwrap().borrow_mut().right = Some(Rc::clone(&v));
+        }
+        v.borrow_mut().parent = Some(Rc::clone(u.borrow().parent.as_ref().unwrap()));
+    }
+
+    fn rb_delete_fixup(&mut self, mut x: Rc<RefCell<Node<T>>>) {
+        let mut x_color = x.borrow().color.as_ref().unwrap().clone();
+        while Rc::as_ptr(&x) != Rc::as_ptr(&self.root.as_ref().unwrap()) && x_color != Color::Black {
+            let x_parent_left_ptr = Rc::as_ptr(x.borrow().parent.as_ref().unwrap().borrow().left.as_ref().unwrap());
+            if Rc::as_ptr(&x) == x_parent_left_ptr {
+                let mut w = Rc::clone(x.borrow().parent.as_ref().unwrap().borrow().right.as_ref().unwrap());
+                if w.borrow().color.as_ref().unwrap().clone() == Color::Red {
+                    w.borrow_mut().color = Some(Color::Black);
+                    x.borrow().parent.as_ref().unwrap().borrow_mut().color = Some(Color::Red);
+                    let x_parent = Rc::clone(x.borrow().parent.as_ref().unwrap());
+                    self.rb_left_rotate(x_parent);
+                    w = Rc::clone(x.borrow().parent.as_ref().unwrap().borrow().right.as_ref().unwrap());
+                }
+                let w_left_color = w.borrow().left.as_ref().unwrap().borrow().color.as_ref().unwrap().clone();
+                let w_right_color = w.borrow().right.as_ref().unwrap().borrow().color.as_ref().unwrap().clone();
+                if w_left_color == Color::Black && w_right_color == Color::Black {
+                    w.borrow_mut().color = Some(Color::Red);
+                    let x_parent = Rc::clone(x.borrow().parent.as_ref().unwrap());
+                    x = x_parent;
+                } else {
+                    let w_right_color = w.borrow().right.as_ref().unwrap().borrow().color.as_ref().unwrap().clone();
+                    if w_right_color == Color::Black {
+                        w.borrow().left.as_ref().unwrap().borrow_mut().color = Some(Color::Black);
+                        w.borrow_mut().color = Some(Color::Red);
+                        self.rb_right_rotate(Rc::clone(&w));
+                        w = Rc::clone(x.borrow().parent.as_ref().unwrap().borrow().right.as_ref().unwrap());
+                    }
+                    let x_parent_color = x.borrow().parent.as_ref().unwrap().borrow().color.as_ref().unwrap().clone();
+                    w.borrow_mut().color = Some(x_parent_color);
+                    x.borrow().parent.as_ref().unwrap().borrow_mut().color = Some(Color::Black);
+                    w.borrow().right.as_ref().unwrap().borrow_mut().color = Some(Color::Black);
+
+                    let x_parent = Rc::clone(x.borrow().parent.as_ref().unwrap());
+                    self.rb_left_rotate(x_parent);
+                    x = Rc::clone(&self.root.as_ref().unwrap());
+                }
+            } else {
+                let mut w = Rc::clone(x.borrow().parent.as_ref().unwrap().borrow().left.as_ref().unwrap());
+                if w.borrow().color.as_ref().unwrap().clone() == Color::Red {
+                    w.borrow_mut().color = Some(Color::Black);
+                    x.borrow().parent.as_ref().unwrap().borrow_mut().color = Some(Color::Red);
+                    let x_parent = Rc::clone(x.borrow().parent.as_ref().unwrap());
+                    self.rb_right_rotate(x_parent);
+                    w = Rc::clone(x.borrow().parent.as_ref().unwrap().borrow().left.as_ref().unwrap());
+                }
+                let w_left_color = w.borrow().left.as_ref().unwrap().borrow().color.as_ref().unwrap().clone();
+                let w_right_color = w.borrow().right.as_ref().unwrap().borrow().color.as_ref().unwrap().clone();
+                if w_left_color == Color::Black && w_right_color == Color::Black {
+                    w.borrow_mut().color = Some(Color::Red);
+                    let x_parent = Rc::clone(x.borrow().parent.as_ref().unwrap());
+                    x = x_parent;
+                } else {
+                    let w_left_color = w.borrow().left.as_ref().unwrap().borrow().color.as_ref().unwrap().clone();
+                    if w_left_color == Color::Black {
+                        w.borrow().right.as_ref().unwrap().borrow_mut().color = Some(Color::Black);
+                        w.borrow_mut().color = Some(Color::Red);
+                        self.rb_left_rotate(Rc::clone(&w));
+                        w = Rc::clone(x.borrow().parent.as_ref().unwrap().borrow().left.as_ref().unwrap());
+                    }
+                    let x_parent_color = x.borrow().parent.as_ref().unwrap().borrow().color.as_ref().unwrap().clone();
+                    w.borrow_mut().color = Some(x_parent_color);
+                    x.borrow().parent.as_ref().unwrap().borrow_mut().color = Some(Color::Black);
+                    w.borrow().left.as_ref().unwrap().borrow_mut().color = Some(Color::Black);
+                    let x_parent = Rc::clone(x.borrow().parent.as_ref().unwrap());
+                    self.rb_right_rotate(x_parent);
+                    x = Rc::clone(&self.root.as_ref().unwrap());
+                }
+            }
+            x_color = x.borrow().color.as_ref().unwrap().clone();
+        }
+        x.borrow_mut().color = Some(Color::Black);
+    }
+
+    fn rb_delete(&mut self, z: Rc<RefCell<Node<T>>>) {
+        let mut y: Rc<RefCell<Node<T>>> = Rc::clone(&z);
+        let x: Rc<RefCell<Node<T>>>;
+        let mut y_original_color: Color = y.borrow().color.as_ref().unwrap().clone();
+
+        if Rc::as_ptr(z.borrow().left.as_ref().unwrap()) == Rc::as_ptr(&self.sentinel) {
+            x = Rc::clone(z.borrow().right.as_ref().unwrap());
+            let z_right = Rc::clone(z.borrow().right.as_ref().unwrap());
+            self.rb_transplant(Rc::clone(&z), z_right);
+        } else if Rc::as_ptr(z.borrow().right.as_ref().unwrap()) == Rc::as_ptr(&self.sentinel) {
+            x = Rc::clone(z.borrow().left.as_ref().unwrap());
+            let z_left = Rc::clone(z.borrow().left.as_ref().unwrap());
+            self.rb_transplant(Rc::clone(&z), z_left);
+        } else {
+            let z_right = Rc::clone(z.borrow().right.as_ref().unwrap());
+            y = self.rb_tree_minimum(z_right);
+            y_original_color = y.borrow().color.as_ref().unwrap().clone();
+            x = Rc::clone(y.borrow().right.as_ref().unwrap());
+            if Rc::as_ptr(x.borrow().parent.as_ref().unwrap()) == Rc::as_ptr(&z) {
+                x.borrow_mut().parent = Some(Rc::clone(&y));
+            } else {
+                let y_right = Rc::clone(y.borrow().right.as_ref().unwrap());
+                self.rb_transplant(Rc::clone(&y), y_right);
+                y.borrow_mut().right = Some(Rc::clone(z.borrow().right.as_ref().unwrap()));
+                y.borrow().right.as_ref().unwrap().borrow_mut().parent = Some(Rc::clone(&y));
+            }
+
+            self.rb_transplant(Rc::clone(&z), Rc::clone(&y));
+            y.borrow_mut().left = Some(Rc::clone(z.borrow().left.as_ref().unwrap()));
+            y.borrow().left.as_ref().unwrap().borrow_mut().parent = Some(Rc::clone(&y));
+            y.borrow_mut().color = Some(z.borrow().color.as_ref().unwrap().clone());
+        }
+
+        if y_original_color == Color::Black {
+            self.rb_delete_fixup(x)
+        }
+    }
+
+    pub fn min(&self) -> Option<T> {
+        let root = Rc::clone(self.root.as_ref().unwrap());
+        if let Some(x) = self.rb_tree_minimum(root).borrow().key.clone() {
+            Some(x)
+        } else {
+            None
+        }
+    }
+
+    pub fn max(&self) -> Option<T> {
+        let root = Rc::clone(self.root.as_ref().unwrap());
+        if let Some(x) = self.rb_tree_maximum(root).borrow().key.clone() {
+            Some(x)
+        } else {
+            None
+        }
+    }
+
+    pub fn search(&self, item: T) -> Option<T> {
+        if let Some(x) = self.rb_search(item) {
+            Some(x.borrow().key.as_ref().unwrap().clone())
+        } else {
+            None
+        }
+    }
+
     pub fn insert(&mut self, item: T) {
         let mut node = Node::new(item, Color::Red);
         node.left = Some(Rc::clone(&self.sentinel));
@@ -258,6 +426,16 @@ where
         }
         self.size += 1;
     }
+
+    pub fn delete(&mut self, item: T) -> Result<T, &'static str> {
+        let node = self.rb_search(item.clone());
+        if let Some(ref x) = node {
+            self.rb_delete(Rc::clone(x));
+            Ok(item)
+        } else {
+            Err("not found")
+        }
+    }
 }
 
 #[cfg(test)]
@@ -265,6 +443,7 @@ mod test {
 
     use super::RBtree;
     use crate::rand::Rand;
+    use std::collections::HashSet;
 
     #[test]
     fn insert_works_str() {
@@ -305,8 +484,16 @@ mod test {
         let mut r = Rand::srand(69);
 
         let mut values = Vec::new();
+        let mut min = i32::MAX;
+        let mut max = i32::MIN;
         for _ in 0..size {
             let n = (r.rand() % size) as i32;
+            if n < min {
+                min = n;
+            }
+            if n > max {
+                max = n;
+            }
             values.push(n);
             t.insert(n);
         }
@@ -316,6 +503,47 @@ mod test {
             assert_eq!(t.search(n), Some(n));
         }
 
+        assert_eq!(t.min(), Some(min));
+        assert_eq!(t.max(), Some(max));
+
         assert_eq!(t.size(), size as i64);
+    }
+
+    #[test]
+    fn delete_works_randint() {
+        let mut t: RBtree<i32> = RBtree::new();
+        let size = 1000;
+
+        let mut r = Rand::srand(69);
+
+        let mut values = HashSet::new();
+        let mut min = i32::MAX;
+        let mut max = i32::MIN;
+        for _ in 0..size {
+            let mut n = (r.rand() % size) as i32;
+            while values.contains(&n) {
+                n = (r.rand() % size) as i32;
+            }
+            values.insert(n);
+            if n < min {
+                min = n;
+            }
+            if n > max {
+                max = n;
+            }
+            t.insert(n);
+        }
+
+        for (_idx, item) in values.iter().enumerate() {
+            println!("{}", _idx);
+            let actual = t.delete(*item);
+            assert_eq!(t.search(*item), None);
+            assert_eq!(actual, Ok(*item));
+        }
+
+        assert_eq!(t.min(), None);
+        assert_eq!(t.max(), None);
+
+        assert_eq!(t.size(), 0);
     }
 }
